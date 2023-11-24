@@ -1,0 +1,614 @@
+schemaVersion: 3
+meta:
+  sourceVersionId: cae4d5c7-f079-4ec5-93a2-abddf1714cbc # DO NOT CHANGE - Hex uses this to match up project versions when reimporting the file
+  description: This app allows users to generate a set of time series forecasts without any technical knowledge. They can select a sample dataset, the number of periods to forecast, and the types of forecasts to run. This is meant to be a proof of concept for building advanced analytical tools that can be configured and run with a no-code interface.
+  projectId: 6356acb1-2d8d-4f12-96a9-376dac1bb85e # DO NOT CHANGE - Unique ID of the project from which this file was generated
+  title: No-Code Time Series Forecasting
+  timezone: null
+  appTheme: LIGHT
+  codeLanguage: PYTHON
+  status:
+    name: Production
+  categories:
+    - name: External
+  castDecimalsDefault: true
+  logicQueryCacheTimeout: null
+  publishedQueryCacheTimeout: null
+projectAssets:
+  dataConnections: []
+  envVars: []
+  secrets: []
+sharedAssets:
+  secrets: []
+  vcsPackages: []
+  dataConnections: []
+  externalFileIntegrations: []
+cells:
+  - cellType: CODE
+    cellId: d0ae6e1e-4934-4b99-9852-02d6dc5cae2f # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Setup Environment
+    config:
+      source: |
+        import time
+        from datetime import datetime
+        import pandas as pd
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        import statsmodels.api as sm
+        from prophet import Prophet
+  - cellType: CODE
+    cellId: 2fc3c98a-d6a4-4dc0-9bf1-5fe70f89cbc1 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Import Data
+    config:
+      source: |-
+        sales_data = 'sales_data_2018_2022.csv'
+        shipping_data = 'shipping_data_2018_2023.csv'
+        search_data = 'grow_google_trends.csv'
+        churn_data = 'customer_churn_data_2014_2021.csv'
+
+        available_datasets = [' ', sales_data, shipping_data, search_data, churn_data]
+  - cellType: INPUT
+    cellId: e5ef30e1-29d9-4cd7-8687-e0e25a962855 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Select dataset
+    config:
+      inputType: DROPDOWN
+      name: select_dataset
+      outputType: DYNAMIC
+      options:
+        valueOptions:
+          variableName: available_datasets
+      defaultValue: grow_google_trends.csv
+  - cellType: CODE
+    cellId: 2e141954-1313-44f5-bf99-6ed32426fc2f # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Import Data
+    config:
+      source: |
+        dataset = pd.read_csv(select_dataset)
+  - cellType: CODE
+    cellId: 2b1559d1-2d2b-4e40-ac5d-21469a34f515 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Preview Data
+    config:
+      source: |-
+        time.sleep(.5)
+        dataset.head(5)
+  - cellType: CODE
+    cellId: e92f1435-28b3-4c79-9eaf-a8fa3901505c # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Columns
+    config:
+      source: columns = dataset.columns.tolist()
+  - cellType: INPUT
+    cellId: 3040f8ff-a6a8-4780-aab3-13797d92a213 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Forecast Values
+    config:
+      inputType: DROPDOWN
+      name: forecast_values
+      outputType: DYNAMIC
+      options:
+        valueOptions:
+          variableName: columns
+      defaultValue: Grow.com_search_google_trend
+  - cellType: INPUT
+    cellId: e37d6c4b-9bfb-4793-9c3f-e396f7aa9319 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Forecast Dates
+    config:
+      inputType: DROPDOWN
+      name: forecast_dates
+      outputType: DYNAMIC
+      options:
+        valueOptions:
+          variableName: columns
+      defaultValue: sale_date
+  - cellType: CODE
+    cellId: 87fa749f-77fd-427a-95aa-1e6a6f25ce85 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Create Forecast Dataframe
+    config:
+      source: |-
+        forecast_df = dataset[[forecast_dates, forecast_values]].rename(columns={forecast_dates : 'ds', forecast_values: 'y'})
+
+        forecast_df['ds'] = pd.to_datetime(forecast_df['ds'])
+  - cellType: INPUT
+    cellId: b9f03f9d-c752-469f-af89-8c189cb35b58 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Periods to Forecast
+    config:
+      inputType: NUMERIC_INPUT
+      name: forecast_periods
+      outputType: NUMBER
+      options:
+        increment: 1
+      defaultValue: 0
+  - cellType: INPUT
+    cellId: 8d21a9b4-05ed-4380-bdf6-f3ad101612f9 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Forecasts to Run
+    config:
+      inputType: MULTISELECT
+      name: forecasts_to_run
+      outputType: LIST_STRING
+      options:
+        multiValueOptions:
+          - linear
+          - simple_sea
+          - adv_sea
+      defaultValue: []
+  - cellType: CODE
+    cellId: c4c53356-b830-4490-8285-8a621c14d2d3 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Seasonality Detector
+    config:
+      source: |-
+        if len(forecast_df) >= 2:
+            # Calculate the number of days between the first two dates
+            date_diff = (forecast_df['ds'].iloc[1] - forecast_df['ds'].iloc[0]).days
+
+            # Determine the appropriate value for 's' based on date_diff
+            if date_diff <= 3:
+                #Daily data
+                set_seasonality = 7
+                set_freq = 'D'
+            elif date_diff <= 7:
+            # Weekly data
+                set_seasonality = 7
+                set_freq = 'W-SUN'
+            elif date_diff <= 31:
+            # Monthly data
+                set_seasonality = 12
+                set_freq = 'MS'
+            elif date_diff <= 93:
+            # Quarterly data
+                set_seasonality = 4
+                set_freq = 'QS'
+            elif date_diff <= 365:
+            # Yearly data
+                set_seasonality = 12
+                set_freq = 'AS'
+            else:
+            # For any other frequency, set a default or handle it as needed
+                set_seasonality = 0
+                set_freq = 0
+
+        else:
+            date_diff = 0
+            set_seasonality = 0
+            set_freq = 0
+  - cellType: CODE
+    cellId: 889ea2df-7dfc-4051-a6c8-375864cb7b4b # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Prophet Model Days Conversion
+    config:
+      source: |-
+        if len(forecast_df) >= 2:
+            prophet_date_diff = (forecast_df['ds'].iloc[1] - forecast_df['ds'].iloc[0]).days
+        else:
+            prophet_date_diff = 0
+
+        prophet_forecast_days = prophet_date_diff * forecast_periods
+  - cellType: CODE
+    cellId: 3a167921-773c-431c-ba17-522797da9c06 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Linear Configuration
+    config:
+      source: |-
+        if 'linear' in forecasts_to_run:
+            lin_model = sm.tsa.ARIMA(forecast_df['y'], order=(1, 0, 1))
+            lin_results = lin_model.fit()
+            lin_forecast = lin_results.forecast(steps=forecast_periods)
+
+
+
+            df_lin_historical = forecast_df
+            lin_forecast_dates = pd.date_range(start=df_lin_historical['ds'].iloc[-1] + pd.DateOffset(days=7), periods=forecast_periods, freq=set_freq)
+            lin_forecast_data = pd.DataFrame({'ds': lin_forecast_dates,'y': lin_forecast.values,'Forecast': 'Forecast'})
+            df_lin_historical['Forecast'] = 'Actual'
+            lin_combined_df = pd.concat([df_lin_historical, lin_forecast_data])
+        else:
+            lin_combined_df = pd.DataFrame(columns=['ds', 'y', 'Forecast'])
+  - cellType: CHARTV2
+    cellId: 3b4268bb-b6c4-4cac-b2fe-e66fc25fc518 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Linear Forecast
+    config:
+      height: null
+      chartSpec:
+        type: layered
+        layers:
+          - id: 61a3db12-36e9-4cbd-ae0a-c0aeac46fc73
+            xAxis:
+              type: datetime
+              style:
+                grid:
+                  style: solid
+                ticks: {}
+                labels: {}
+              title: Date Range
+              datetimeFormat:
+                format: DATE_ISO8601
+                timezone: IGNORE
+                columnType: DATETIME
+              dataFrameColumn: ds
+            series:
+              - id: cffc8612-9eb2-4dea-bc75-db02f1c9f181
+                type: line
+                axis:
+                  type: number
+                  scale: linear
+                  style:
+                    grid:
+                      style: solid
+                    ticks: {}
+                    labels: {}
+                  title: Values
+                  aggregate: sum
+                dataFrameColumns:
+                  - y
+                colorDataFrameColumn: Forecast
+                colorOrder: ascending
+                color:
+                  type: series
+                  colorsBySeriesValues: {}
+                opacity:
+                  type: static
+                  value: 1
+                tooltip:
+                  type: auto
+                point: false
+                stroke: solid
+            dataFrame: lin_combined_df
+        settings:
+          legend:
+            position: right
+          tooltip: true
+          selectionEnabled: false
+      chartSelection: {}
+      colorMappings:
+        "true": "#F58518"
+        "false": "#4C78A8"
+        Actual: "#4C78A8"
+        Forecast: "#F58518"
+      resultVariable: filter_result
+      outputResult: false
+      displayTableConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        filters: null
+        columnProperties:
+          - originalName: Forecast
+            renameTo: null
+            size: 101
+            wrapText: null
+            displayFormat: null
+          - originalName: ds
+            renameTo: null
+            size: 156
+            wrapText: null
+            displayFormat: null
+          - originalName: y
+            renameTo: null
+            size: 61
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+  - cellType: CODE
+    cellId: a4053976-29a4-4ab6-81aa-d1114a8246e9 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Seasonal Configuration
+    config:
+      source: |
+        if 'simple_sea' in forecasts_to_run:
+            season_model = sm.tsa.statespace.SARIMAX(forecast_df['y'], order=(1,0,1), seasonal_order=(1,0,1,set_seasonality))
+            season_results = season_model.fit()
+            season_forecast = season_results.forecast(steps=forecast_periods)
+
+            df_sea_historical = forecast_df
+            sea_forecast_dates = pd.date_range(start=df_sea_historical['ds'].iloc[-1] + pd.DateOffset(days=7), periods=forecast_periods, freq=set_freq)
+            sea_forecast_data = pd.DataFrame({'ds': sea_forecast_dates,'y': season_forecast.values,'Forecast': 'Forecast'})
+            df_sea_historical['Forecast'] = 'Actual'
+            season_combined_df = pd.concat([df_sea_historical, sea_forecast_data])
+        else:
+            season_combined_df = pd.DataFrame(columns=['ds', 'y', 'Forecast'])
+  - cellType: CHARTV2
+    cellId: 5697f438-01ee-4923-9f2d-cb0f0dc28423 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Simple Seasonal Forecast
+    config:
+      height: null
+      chartSpec:
+        type: layered
+        layers:
+          - id: 5fd2c379-1a5d-45c7-9343-daf5ec6906bf
+            xAxis:
+              type: datetime
+              style:
+                grid:
+                  style: solid
+                ticks: {}
+                labels: {}
+              title: Date Range
+              datetimeFormat:
+                format: DATE_ISO8601
+                timezone: IGNORE
+                columnType: DATETIME
+              dataFrameColumn: ds
+            series:
+              - id: 22f0e012-3a21-4ba9-a070-c8a204a2d1f3
+                type: line
+                axis:
+                  type: number
+                  style:
+                    grid:
+                      style: solid
+                    ticks: {}
+                    labels: {}
+                  title: Values
+                  aggregate: sum
+                dataFrameColumns:
+                  - y
+                colorDataFrameColumn: Forecast
+                colorOrder: ascending
+                color:
+                  type: series
+                  colorsBySeriesValues: {}
+                opacity:
+                  type: static
+                  value: 1
+                tooltip:
+                  type: auto
+                point: false
+                stroke: solid
+            dataFrame: season_combined_df
+        settings:
+          legend:
+            position: right
+          tooltip: true
+          selectionEnabled: false
+      chartSelection: {}
+      colorMappings:
+        "true": "#F58518"
+        "false": "#4C78A8"
+        Actual: "#4C78A8"
+        Forecast: "#F58518"
+      resultVariable: filter_result_2
+      outputResult: false
+      displayTableConfig:
+        pageSize: 50
+        height: null
+        hideIcons: false
+        hideIndex: false
+        defaultSortColumn: null
+        defaultSortIndexColumn: null
+        defaultSortDirection: ASC
+        conditionalFormatting: null
+        filters: null
+        columnProperties:
+          - originalName: Forecast
+            renameTo: null
+            size: 101
+            wrapText: null
+            displayFormat: null
+          - originalName: ds
+            renameTo: null
+            size: 156
+            wrapText: null
+            displayFormat: null
+          - originalName: y
+            renameTo: null
+            size: 64
+            wrapText: null
+            displayFormat: null
+        columnOrdering: null
+        pinnedColumns: null
+        hiddenColumns: null
+  - cellType: CODE
+    cellId: dbfb700b-37a4-4d4e-9352-137744887a08 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Prophet Configuration
+    config:
+      source: |+
+        if 'adv_sea' in forecasts_to_run:
+            pro_model = Prophet(yearly_seasonality=True, weekly_seasonality=True, daily_seasonality=True, seasonality_mode='multiplicative')
+            pro_model = Prophet(changepoint_prior_scale=0.1)
+            pro_model.fit(forecast_df)
+            future = pro_model.make_future_dataframe(periods=prophet_forecast_days)
+            pro_forecast = pro_model.predict(future)
+        else:
+            pro_forecast = pd.DataFrame(columns=['ds', 'y'])
+
+
+  - cellType: CODE
+    cellId: 220a4aeb-408e-4116-a048-f25ce8d0ae19 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Advanced Seasonal Forecast
+    config:
+      source: |
+        fig = pro_model.plot(pro_forecast)
+  - cellType: INPUT
+    cellId: 81376001-929a-489d-9aae-13ab82f88ee0 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Export XLSX
+    config:
+      inputType: BUTTON
+      name: export_xlsx
+      outputType: BOOLEAN
+      options:
+        intent: success
+        icon: export
+        text: Export to Excel
+      defaultValue: null
+  - cellType: INPUT
+    cellId: dae48c31-f73d-460d-acf7-6611c24d926c # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Export CSV
+    config:
+      inputType: BUTTON
+      name: export_csv
+      outputType: BOOLEAN
+      options:
+        intent: warning
+        icon: export
+        text: Export to CSV
+      defaultValue: null
+  - cellType: CODE
+    cellId: fbdc9a2e-fdb8-46f2-9e96-2fa6456d9070 # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Timestamp for Exports
+    config:
+      source: export_timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+  - cellType: CODE
+    cellId: ba686cf7-7f66-43ab-abe0-4a39e7c0115e # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: CSV Export Configuration
+    config:
+      source: |
+        if export_csv:
+            if pro_forecast is not None and not pro_forecast.empty:
+                pro_forecast.to_csv(f'advanced_forecast_{export_timestamp}.csv', index=False)
+            if season_combined_df is not None and not season_combined_df.empty:
+                season_combined_df.to_csv(f'simple_seasonal_forecast_{export_timestamp}.csv', index=False)
+            if lin_combined_df is not None and not lin_combined_df.empty:
+                lin_combined_df.to_csv(f'linear_forecast_{export_timestamp}.csv', index=False)
+        else:
+            pass
+  - cellType: CODE
+    cellId: 58aa6d8c-61f0-4f22-b0ab-73152cd1d10d # DO NOT CHANGE - Hex uses this to match up cells when reimporting the file, and detect any changes to existing cells
+    cellLabel: Excel Export Configuration
+    config:
+      source: |
+        if export_xlsx:
+            if pro_forecast is not None and not pro_forecast.empty:
+                pro_forecast.to_excel('advanced_forecast.xlsx', index=False, engine='openpyxl')
+            if season_combined_df is not None and not season_combined_df.empty:
+                season_combined_df.to_excel('simple_seasonal_forecast.xlsx', index=False, engine='openpyxl')
+            if lin_combined_df is not None and not lin_combined_df.empty:
+                lin_combined_df.to_excel('linear_forecast.xlsx', index=False, engine='openpyxl')
+        else:
+            pass
+appLayout:
+  visibleMetadataFields:
+    - NAME
+    - DESCRIPTION
+    - AUTHOR
+    - LAST_RUN
+    - CATEGORIES
+    - STATUS
+    - TABLE_OF_CONTENTS
+    - LAST_EDITED
+  fullWidth: false
+  tabs:
+    - name: Tab 1
+      rows:
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: e5ef30e1-29d9-4cd7-8687-e0e25a962855
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 2b1559d1-2d2b-4e40-ac5d-21469a34f515
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 3040f8ff-a6a8-4780-aab3-13797d92a213
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: e37d6c4b-9bfb-4793-9c3f-e396f7aa9319
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: b9f03f9d-c752-469f-af89-8c189cb35b58
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+        - columns:
+            - start: 0
+              end: 30
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 8d21a9b4-05ed-4380-bdf6-f3ad101612f9
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 3b4268bb-b6c4-4cac-b2fe-e66fc25fc518
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 5697f438-01ee-4923-9f2d-cb0f0dc28423
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 220a4aeb-408e-4116-a048-f25ce8d0ae19
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: 81376001-929a-489d-9aae-13ab82f88ee0
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+        - columns:
+            - start: 0
+              end: 120
+              elements:
+                - showSource: false
+                  hideOutput: false
+                  type: CELL
+                  cellId: dae48c31-f73d-460d-acf7-6611c24d926c
+                  sharedFilterId: null
+                  height: null
+                  showLabel: true
+sharedFilters: []
