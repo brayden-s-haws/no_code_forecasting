@@ -9,6 +9,10 @@ The app comes pre-loaded with a series of datasets. These datasets span domains 
 
 The app is hosted on [Hex](https://hex.tech) and your can test it for yourself at this [link](https://app.hex.tech/455658aa-ee04-480f-945a-3fd455933fa2/app/6356acb1-2d8d-4f12-96a9-376dac1bb85e/latest).
 
+The code for this is available in two forms:
+* A jupyter notebook file that you can run on the configuration of your choice
+* A xml file that is meant for importing into Hex
+
 # Roadmap
 Currently there are a limited number of datasets available. The code is written in a manner to handle any dataset with at least one series of values and a corresponding series of dates. I would like to add a way for users to be able to upload their own dataset and run forecasts in it.
 
