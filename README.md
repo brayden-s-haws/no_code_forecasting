@@ -1,7 +1,7 @@
 # Description
 This app allows users to generate a set of time series forecasts without any technical knowledge. They can select a sample dataset, the number of periods to forecast, and the types of forecasts to run. This is meant to be a proof of concept for building advanced analytical tools that can be configured and run with a no-code interface.
 
-<img width="1080" alt="image" src="https://github.com/brayden-s-haws/no_code_forecasting/assets/58832489/74c9da68-9e03-45e6-ad70-b046b60ee8a4">
+![CleanShot Safari-2023-12-19](https://github.com/brayden-s-haws/no_code_forecasting/assets/58832489/470a6921-c386-48aa-8394-125ac2ec5efe)
 
 
 # How It Works
@@ -14,7 +14,7 @@ The code for this is available in two forms:
 * A yaml file that is meant for importing into Hex
 
 # Roadmap
-Currently there are a limited number of datasets available. The code is written in a manner to handle any dataset with at least one series of values and a corresponding series of dates. I would like to add a way for users to be able to upload their own dataset and run forecasts in it.
+Currently there are a limited number of datasets available. The code is written in a manner to handle any dataset with at least one series of values and a corresponding series of dates. I would like to add a way for users to be able to upload their own dataset and run forecasts on it.
 
 
 
