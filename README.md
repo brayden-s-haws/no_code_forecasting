@@ -22,5 +22,5 @@ ___
 ### Personal Progress ###
 * What I learned: How to use Jupyter Notebooks generally and Hex's specific implementation. How to use statsmodel and Prophet for generating time series models.
 * What I wish I had done differently: Developed functionaility for users to be able to import their own data rather than jsut relying on demo data.
-* What I am most proud of: Lines 135-170 of No-Code Time Series Forecasting.yaml, one of the key inputs to these models is determining the seasonal period of the data. While this is just a dumb set of if statements it avoids the user needing to understand the this concept or needing to inspect their data and make a choice.
+* What I am most proud of: [Lines 135-170](https://github.com/brayden-s-haws/no_code_forecasting/blob/4f744d5cb7516b32a8f2cbc65660f2f69ab4d5b4/No-Code%20Time%20Series%20Forecasting.yaml#L135) of No-Code Time Series Forecasting.yaml, one of the key inputs to these models is determining the seasonal period of the data. While this is just a dumb set of if statements it avoids the user needing to understand the this concept or needing to inspect their data and make a choice.
 
